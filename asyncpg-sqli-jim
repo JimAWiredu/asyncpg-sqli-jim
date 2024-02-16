@@ -1,0 +1,26 @@
+rules:
+  - id: asyncpg-sqli-jim
+    languages:
+      - python
+    mode: taint
+    message: "Detected potential SQL injection vulnerability in an asyncpg Python
+      SQL statement. Use parameterized queries or prepared statements to prevent
+      SQL injection. You can create parameterized queries with
+      'conn.fetch(\"SELECT $1 FROM table\", value)' or prepared statements with
+      'Connection.prepare': 'stmt = conn.prepare(\"SELECT $1 FROM table\");
+      await stmt.fetch(user_value)'"
+    pattern-sources:
+      - pattern: |
+          $CONN.$METHOD(...,$QUERY,...)
+    pattern-sinks:
+      - pattern: |
+          await $CONN.$METHOD(..., $QUERY)
+      - pattern: |
+          $CONN.$METHOD(..., f'...{$USERINPUT}...', ...)
+      - pattern: |
+          $CONN.$METHOD("..." % ext.$RT($TN),[...])
+      - pattern: |
+          $CONN.$METHOD('SELECT * FROM %s'%(user_input))
+    pattern-sanitizers:
+      - pattern: $TY.prepare('...')
+    severity: WARNING
